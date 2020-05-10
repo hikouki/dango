@@ -6,11 +6,11 @@ Background(foreground) job scheduling system.
 
 Did not complete jobs in the foreground will also continue running in the background.
 
-# Dependencies
+## Dependencies
 
 - [react-native-background-timer](https://github.com/ocetnik/react-native-background-timer)
 
-# How to use
+## How to use
 
 Please install.
 
@@ -40,7 +40,7 @@ React.useEffect(() => {
 }, []);
 ```
 
-# In the Future
+## In the Future
 
 - [ ] Retry.
 - [ ] Async worker support.
