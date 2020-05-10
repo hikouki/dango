@@ -90,6 +90,8 @@ export class Dangosan {
       const queue = lane[key];
       if (queue.status === "running" && queue.runningWorker) {
         queue.slots.unshift(queue.runningWorker);
+        queue.runningWorker = null;
+        queue.status = "idle";
       }
       return { ...sum, [key]: queue };
     }, {});
