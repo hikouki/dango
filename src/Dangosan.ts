@@ -41,7 +41,7 @@ export class Dangosan {
   }
 
   enqueue(key: string, slot: Slot) {
-    const lane = this.getLane(key);
+    const lane = this.getQueue(key);
     if (this.filledQueue(key)) throw new ThrottledError();
     lane.slots.push(slot);
   }
@@ -57,18 +57,18 @@ export class Dangosan {
     );
   }
 
-  private filledQueue(key: string) {
-    const lane = this.getLane(key);
+  private filledQueue(key: string): boolean {
+    const lane = this.getQueue(key);
     if (lane.slotSize === null) return false;
     const workerCnt = (lane.runningWorker ? 1 : 0) + lane.slots.length;
     return workerCnt >= lane.slotSize;
   }
 
-  private getLane(key: string) {
-    return this.lane[key] || this.buildLane(key);
+  private getQueue(key: string) {
+    return this.lane[key] || this.buildQueue(key);
   }
 
-  private buildLane(key: string) {
+  private buildQueue(key: string): Queue {
     const newQueue: Queue = {
       status: "idle",
       slots: [],
@@ -109,7 +109,7 @@ export class Dangosan {
   }
 
   async terminateRunningWorker(key: string) {
-    const lane = this.getLane(key);
+    const lane = this.getQueue(key);
     if (lane.runningWorker) {
       await lane.runningWorker.terminate();
     }
