@@ -40,6 +40,14 @@ React.useEffect(() => {
 }, []);
 ```
 
+## Options
+
+|option| type | default | description |
+|------|------|---------|-------------|
+|interval|number?| 3000 | How often to monitor the queue |
+|storage | Storage? | OnMemoryStorage | Storage interface(ex. AsyncStorage) |
+|storageKey | string? | #dangosan | The key of key-value storage |
+
 ## In the Future
 
 - [ ] Retry.
