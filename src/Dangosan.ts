@@ -27,16 +27,17 @@ export interface DangosanOption {
 }
 
 interface Props {
-  options: DangosanOption;
+  options?: DangosanOption;
 }
 
 export class Dangosan {
   private readonly lane: Lane;
   private readonly options: DangosanOption;
 
-  constructor(props: Props) {
+  constructor(props?: Props) {
+    const attrs = props || {};
     this.lane = {};
-    this.options = { interval: 3000, ...props.options };
+    this.options = { interval: 3000, ...attrs.options };
   }
 
   enqueue(key: string, slot: Slot) {
