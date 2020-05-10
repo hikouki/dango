@@ -1,1 +1,8 @@
-# Dango
+# dangosan
+
+```
+yarn add dangosan
+```
+
+
+
