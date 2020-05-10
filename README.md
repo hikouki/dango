@@ -1,6 +1,6 @@
 # dangosan
 
-This is react-native library.
+This is react native library.
 
 Background(foreground) job scheduling system.
 
