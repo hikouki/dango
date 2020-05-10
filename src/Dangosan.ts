@@ -87,7 +87,7 @@ export class Dangosan {
       JSON.parse(await this.storage().getItem(this.options.storageKey)) || {};
 
     this.lane = Object.keys(lane).reduce((sum, key) => {
-      const queue = lane[key];
+      const queue = { ...lane[key] };
       if (queue.status === "running" && queue.runningWorker) {
         queue.slots.unshift(queue.runningWorker);
         queue.runningWorker = null;
