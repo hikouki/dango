@@ -1,7 +1,5 @@
 import BackgroundTimer from "react-native-background-timer";
 import { ThrottledError } from "./errors/ThrottledError";
-import { Storage } from "./storages/Storage";
-import { OnMemoryStorage } from "./storages/OnMemoryStorage";
 
 export interface Worker {
   perform(): Promise<void>;
@@ -26,8 +24,6 @@ interface Lane {
 
 export interface DangosanOption {
   interval?: number;
-  storage?: Storage;
-  storageKey?: string;
 }
 
 interface Props {
@@ -43,28 +39,22 @@ export class Dangosan {
     this.lane = {};
     this.options = {
       interval: 3000,
-      storage: new OnMemoryStorage(),
-      storageKey: "#dangosan",
       ...attrs.options,
     };
   }
 
-  async enqueue(key: string, slot: Slot) {
+  enqueue(key: string, slot: Slot) {
     const lane = this.getQueue(key);
     if (this.filledQueue(key)) throw new ThrottledError();
     lane.slots.push(slot);
-    await this.saveLane();
   }
 
-  async dequeue(key: string): Promise<Slot | undefined> {
+  dequeue(key: string): Slot | undefined {
     const queue = this.lane[key].slots.shift();
-    await this.saveLane();
     return queue;
   }
 
-  async perform() {
-    await this.restore();
-
+  perform() {
     BackgroundTimer.runBackgroundTimer(
       this.execute.bind(this),
       this.options.interval
@@ -78,37 +68,11 @@ export class Dangosan {
     return workerCnt >= queue.slotSize;
   }
 
-  private storage() {
-    return this.options.storage;
-  }
-
-  private async restore() {
-    const lane: Lane =
-      JSON.parse(await this.storage().getItem(this.options.storageKey)) || {};
-
-    this.lane = Object.keys(lane).reduce((sum, key) => {
-      const queue = { ...lane[key] };
-      if (queue.status === "running" && queue.runningWorker) {
-        queue.slots.unshift(queue.runningWorker);
-        queue.runningWorker = null;
-        queue.status = "idle";
-      }
-      return { ...sum, [key]: queue };
-    }, {});
-  }
-
-  private async saveLane() {
-    await this.storage().setItem(
-      this.options.storageKey,
-      JSON.stringify(this.lane)
-    );
-  }
-
   private getQueue(key: string) {
     return this.lane[key] || this.buildQueue(key);
   }
 
-  private async buildQueue(key: string): Promise<Queue> {
+  private buildQueue(key: string): Queue {
     const newQueue: Queue = {
       status: "idle",
       slots: [],
@@ -121,7 +85,7 @@ export class Dangosan {
     return newQueue;
   }
 
-  private async execute() {
+  private execute() {
     Object.keys(this.lane).forEach(async (key) => {
       const queue = this.lane[key];
 
@@ -129,7 +93,7 @@ export class Dangosan {
         return;
       }
 
-      const slot = await this.dequeue(key);
+      const slot = this.dequeue(key);
 
       if (!slot) {
         return;
@@ -137,8 +101,6 @@ export class Dangosan {
 
       queue.runningWorker = slot;
       queue.status = "running";
-
-      await this.saveLane();
 
       await slot.worker.perform();
 
@@ -148,13 +110,11 @@ export class Dangosan {
       if (slot.onCompleted) {
         slot.onCompleted(slot);
       }
-
-      await this.saveLane();
     });
   }
 
   async terminateRunningWorker(key: string) {
-    const lane = await this.getQueue(key);
+    const lane = this.getQueue(key);
     if (lane.runningWorker) {
       await lane.runningWorker.worker.terminate();
     }

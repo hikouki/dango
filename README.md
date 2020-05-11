@@ -2,7 +2,7 @@
 
 This is react native library.
 
-Background(foreground) job scheduling system.
+Background(foreground) job scheduling system on memory.
 
 Did not complete jobs in the foreground will also continue running in the background.
 
@@ -48,7 +48,31 @@ React.useEffect(() => {
 |storage | Storage? | OnMemoryStorage | Storage interface(ex. AsyncStorage) |
 |storageKey | string? | #dangosan | The key of key-value storage |
 
-## In the Future
+## Methods
 
-- [ ] Retry.
-- [ ] Async worker support.
+| if                    | args        |               description |
+|-----------------------|-------------|---------------------------|
+|perform                |             | Run job schedule. |
+|enqueue | key: string, slot: Slot    | Add job. |
+|dequeue | key: string                | Delete job.  |
+|terminateRunningWorker | key: string | terminate running worker. |
+
+## Type definitions
+
+- Slot
+
+```typescript
+export interface Slot {
+  worker: Worker;
+  onCompleted?: (slot: Slot) => void;
+}
+```
+
+- Worker
+
+```typescript
+export interface Worker {
+  perform(): Promise<void>;
+  terminate(): Promise<void>;
+}
+```
