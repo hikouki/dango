@@ -1,7 +1,7 @@
 {
   "name": "dangosan",
   "description": "Background(foreground) job scheduling system on memory for react native.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
   "react-native": "src/index.ts",
