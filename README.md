@@ -57,7 +57,8 @@ React.useEffect(() => {
 
 | if                    | args                       |               description |
 |-----------------------|----------------------------|---------------------------|
-|perform                |                            | Run job schedule. |
+|start                |                            | Run job schedule. |
+|stop                |                            | Stop job schedule. |
 |enqueue                | key: string, slot: Slot    | Add job. |
 |dequeue                | key: string                | Delete job.  |
 |terminateRunningWorker | key: string                | terminate running worker. |
