@@ -1,10 +1,15 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "module": "commonjs",
+    "target": "es2017",
+    "lib": ["es6", "es2016"],
+    "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": "src",
+    "paths": {
+      "react-native-background-job": ["@types/react-native-background-job"]
+    }
   },
-  "include": ["src/index.ts"]
+  "include": ["src/index.ts"],
 }

@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+import BackgroundJob from "react-native-background-job";
 import BackgroundTimer from "react-native-background-timer";
 import { ThrottledError } from "./errors/ThrottledError";
 
@@ -8,7 +10,6 @@ export interface Worker {
 
 export interface Slot {
   worker: Worker;
-  onCompleted?: (slot: Slot) => void;
 }
 
 interface Queue {
@@ -24,14 +25,30 @@ interface Lane {
 
 export interface DangosanOption {
   interval?: number;
+  queue?: {
+    [key: string]: {
+      slotSize?: number;
+    };
+  };
 }
+
+type EventListener = (slot: Slot) => void;
+
+type EventHandlers = {
+  [key: string]: {
+    [key in typeof SUPPORTED_EVENTS[number]]: Map<EventListener, EventListener>;
+  };
+};
 
 interface Props {
   options?: DangosanOption;
 }
 
+const SUPPORTED_EVENTS = ["run", "success", "fail", "done"] as const;
+
 export class Dangosan {
   private readonly options: Required<DangosanOption>;
+  private readonly eventHandlers: EventHandlers;
   private lane: Lane;
 
   constructor(props?: Props) {
@@ -39,8 +56,11 @@ export class Dangosan {
     this.lane = {};
     this.options = {
       interval: 3000,
+      queue: {},
       ...attrs.options,
     };
+
+    this.eventHandlers = {};
   }
 
   enqueue(key: string, slot: Slot) {
@@ -54,11 +74,63 @@ export class Dangosan {
     return queue;
   }
 
-  perform() {
-    BackgroundTimer.runBackgroundTimer(
-      this.execute.bind(this),
-      this.options.interval
-    );
+  start() {
+    if (Platform.OS === "android") {
+      BackgroundJob.register({
+        jobKey: "dangosan",
+        job: this.execute.bind(this),
+      });
+
+      BackgroundJob.schedule({
+        jobKey: "dangosan",
+        period: this.options.interval,
+        exact: true,
+        allowExecutionInForeground: true,
+      });
+    } else {
+      BackgroundTimer.runBackgroundTimer(
+        this.execute.bind(this),
+        this.options.interval
+      );
+    }
+  }
+
+  async stop() {
+    if (Platform.OS === "android") {
+      await BackgroundJob.cancel({ jobKey: "dangosan" });
+    } else {
+      BackgroundTimer.stopBackgroundTimer();
+    }
+  }
+
+  async terminateRunningWorker(key: string) {
+    const lane = this.getQueue(key);
+    if (lane.runningWorker) {
+      await lane.runningWorker.worker.terminate();
+    }
+  }
+
+  addEventListener(
+    key: string,
+    event: typeof SUPPORTED_EVENTS[number],
+    handler: EventListener
+  ) {
+    this.eventHandlersByKey(key)[event].set(handler, handler);
+  }
+
+  removeEventListener(
+    key: string,
+    event: typeof SUPPORTED_EVENTS[number],
+    handler: EventListener
+  ) {
+    this.eventHandlersByKey(key)[event].delete(handler);
+  }
+
+  private listenEventListeners(
+    key: string,
+    event: typeof SUPPORTED_EVENTS[number]
+  ): EventListener[] {
+    return Array.from(this.eventHandlersByKey(key)[event].values());
   }
 
   private filledQueue(key: string): boolean {
@@ -73,11 +145,16 @@ export class Dangosan {
   }
 
   private buildQueue(key: string): Queue {
+    const queueOptions = this.options.queue[key];
     const newQueue: Queue = {
       status: "idle",
       slots: [],
       runningWorker: null,
-      slotSize: null,
+      slotSize: queueOptions
+        ? typeof queueOptions.slotSize !== "undefined"
+          ? queueOptions.slotSize
+          : null
+        : null,
     };
 
     this.lane[key] = newQueue;
@@ -85,7 +162,21 @@ export class Dangosan {
     return newQueue;
   }
 
-  private execute() {
+  private eventHandlersByKey(key: string) {
+    if (!this.eventHandlers[key]) {
+      this.eventHandlers[key] = SUPPORTED_EVENTS.reduce(
+        (handlers, key) => ({
+          ...handlers,
+          [key]: new Map(),
+        }),
+        {} as EventHandlers[number]
+      );
+    }
+
+    return this.eventHandlers[key];
+  }
+
+  private async execute() {
     Object.keys(this.lane).forEach(async (key) => {
       const queue = this.lane[key];
 
@@ -102,21 +193,28 @@ export class Dangosan {
       queue.runningWorker = slot;
       queue.status = "running";
 
-      await slot.worker.perform();
+      const runEventListeners = this.listenEventListeners(key, "run");
+      runEventListeners.forEach((it) => it(slot));
+
+      try {
+        await slot.worker.perform();
+
+        const completeEventListeners = this.listenEventListeners(
+          key,
+          "success"
+        );
+        completeEventListeners.forEach((it) => it(slot));
+      } catch (e) {
+        console.warn("failed to worker perform.", e);
+        const failEventListeners = this.listenEventListeners(key, "fail");
+        failEventListeners.forEach((it) => it(slot));
+      }
 
       queue.status = "idle";
       queue.runningWorker = null;
 
-      if (slot.onCompleted) {
-        slot.onCompleted(slot);
-      }
+      const doneEventListeners = this.listenEventListeners(key, "done");
+      doneEventListeners.forEach((it) => it(slot));
     });
-  }
-
-  async terminateRunningWorker(key: string) {
-    const lane = this.getQueue(key);
-    if (lane.runningWorker) {
-      await lane.runningWorker.worker.terminate();
-    }
   }
 }

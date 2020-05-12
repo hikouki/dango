@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@react-native-community/bob": "^0.14.0",
+    "@types/react-native": "^0.62.7",
     "@types/react-native-background-timer": "^2.0.0",
     "prettier": "^2.0.5",
     "tslint": "^6.1.2",
@@ -21,6 +22,8 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
+    "react-native": "^0.62.2",
+    "react-native-background-job": "^2.3.1",
     "react-native-background-timer": "^2.2.0"
   },
   "@react-native-community/bob": {
