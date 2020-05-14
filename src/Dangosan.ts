@@ -25,6 +25,7 @@ interface Lane {
 
 export interface DangosanOption {
   interval?: number;
+  debug?: boolean;
   queue?: {
     [key: string]: {
       slotSize?: number;
@@ -55,8 +56,9 @@ export class Dangosan {
     const attrs = props || {};
     this.lane = {};
     this.options = {
-      interval: 3000,
+      interval: 900000,
       queue: {},
+      debug: false,
       ...attrs.options,
     };
 
@@ -64,23 +66,41 @@ export class Dangosan {
   }
 
   enqueue(key: string, slot: Slot) {
+    this.debugLog("enqueue", "key", key, "slot", slot);
     const lane = this.getQueue(key);
     if (this.filledQueue(key)) throw new ThrottledError();
     lane.slots.push(slot);
+
+    this.start();
   }
 
   dequeue(key: string): Slot | undefined {
-    const queue = this.lane[key].slots.shift();
-    return queue;
+    const slot = this.lane[key].slots.shift();
+    this.debugLog(
+      "dequeue",
+      "key",
+      key,
+      "slot",
+      slot,
+      "queue",
+      this.lane[key].slots
+    );
+    return slot;
   }
 
-  start() {
+  setup() {
+    this.debugLog("setup");
     if (Platform.OS === "android") {
       BackgroundJob.register({
         jobKey: "dangosan",
         job: this.execute.bind(this),
       });
+    }
+  }
 
+  private start() {
+    this.debugLog("start");
+    if (Platform.OS === "android") {
       BackgroundJob.schedule({
         jobKey: "dangosan",
         period: this.options.interval,
@@ -96,6 +116,7 @@ export class Dangosan {
   }
 
   async stop() {
+    this.debugLog("stop");
     if (Platform.OS === "android") {
       await BackgroundJob.cancel({ jobKey: "dangosan" });
     } else {
@@ -107,6 +128,7 @@ export class Dangosan {
     const lane = this.getQueue(key);
     if (lane.runningWorker) {
       await lane.runningWorker.worker.terminate();
+      this.debugLog("terminated worker", "key", key);
     }
   }
 
@@ -177,44 +199,77 @@ export class Dangosan {
   }
 
   private async execute() {
-    Object.keys(this.lane).forEach(async (key) => {
-      const queue = this.lane[key];
+    this.debugLog("begin execute.");
+    await Promise.all(
+      Object.keys(this.lane).map(async (key) => {
+        const queue = this.lane[key];
 
-      if (queue.status !== "idle") {
-        return;
-      }
+        if (queue.status !== "idle") {
+          this.debugLog("skip. queue is running.", "key", key);
+          return;
+        }
 
-      const slot = this.dequeue(key);
+        const slot = this.dequeue(key);
 
-      if (!slot) {
-        return;
-      }
+        if (!slot) {
+          this.debugLog("skip. queue is empty.", "key", key);
+          return;
+        }
 
-      queue.runningWorker = slot;
-      queue.status = "running";
+        queue.runningWorker = slot;
+        queue.status = "running";
 
-      const runEventListeners = this.listenEventListeners(key, "run");
-      runEventListeners.forEach((it) => it(slot));
+        const runEventListeners = this.listenEventListeners(key, "run");
+        runEventListeners.forEach((it) => it(slot));
 
-      try {
-        await slot.worker.perform();
+        try {
+          this.debugLog(
+            "begin worker.perform",
+            "key",
+            key,
+            "worker",
+            slot.worker
+          );
+          await slot.worker.perform();
 
-        const completeEventListeners = this.listenEventListeners(
-          key,
-          "success"
-        );
-        completeEventListeners.forEach((it) => it(slot));
-      } catch (e) {
-        console.warn("failed to worker perform.", e);
-        const failEventListeners = this.listenEventListeners(key, "fail");
-        failEventListeners.forEach((it) => it(slot));
-      }
+          const completeEventListeners = this.listenEventListeners(
+            key,
+            "success"
+          );
+          completeEventListeners.forEach((it) => it(slot));
+        } catch (e) {
+          console.warn("failed to worker perform.", e);
+          const failEventListeners = this.listenEventListeners(key, "fail");
+          failEventListeners.forEach((it) => it(slot));
+        }
 
-      queue.status = "idle";
-      queue.runningWorker = null;
+        queue.status = "idle";
+        queue.runningWorker = null;
 
-      const doneEventListeners = this.listenEventListeners(key, "done");
-      doneEventListeners.forEach((it) => it(slot));
-    });
+        this.debugLog("end worker.perform", "key", key, "worker", slot.worker);
+
+        const doneEventListeners = this.listenEventListeners(key, "done");
+        doneEventListeners.forEach((it) => it(slot));
+      })
+    );
+
+    const allSlotCounts = Object.values(this.lane)
+      .map((it) => it.slots.length)
+      .reduce((a, b) => a + b, 0);
+
+    if (allSlotCounts === 0) {
+      this.debugLog("all queue is empty.");
+      await this.stop();
+      return;
+    }
+
+    this.debugLog("end execute.");
+    await this.execute();
+  }
+
+  private debugLog(...args: any[]) {
+    if (this.options.debug) {
+      console.log("[Dangosan]", args);
+    }
   }
 }
