@@ -27,7 +27,7 @@ import { Dangosan } from 'dangosan';
 
 React.useEffect(() => {
   const dango = new Dangosan({
-    interval: 3000,
+    interval: 900000,
     queue: {
       greeting: {
         slotSize: 1
@@ -35,7 +35,7 @@ React.useEffect(() => {
     }
   });
 
-  dango.start();
+  dango.setup();
   dango.enqueue('greeting', {
     worker: {
       perform: () => {
@@ -48,22 +48,23 @@ React.useEffect(() => {
 
 ## Options
 
-|option| type | default | description |
-|------|------|---------|-------------|
-|interval|number?| 3000 | How often to monitor the queue. |
-|queue[key].slotSize|number?| null | enqueue limit size. |
+| option             | type     | default | description                     |
+|--------------------|----------|---------|---------------------------------|
+| debug              | boolean? | false   | Output debug console.log.       |
+| interval           | number?  | 900000  | How often to monitor the queue. |
+| queue[key].slotSize| number?  | null    | Enqueue limit size.             |
 
 ## Methods
 
-| if                    | args                       |               description |
-|-----------------------|----------------------------|---------------------------|
-|start                |                            | Run job schedule. |
-|stop                |                            | Stop job schedule. |
-|enqueue                | key: string, slot: Slot    | Add job. |
-|dequeue                | key: string                | Delete job.  |
-|terminateRunningWorker | key: string                | terminate running worker. |
-|addEventListener       | key: string, event: typeof SUPPORTED_EVENTS[number], EventListener | add event listener. |
-|removeEventListener    | key: string, event: typeof SUPPORTED_EVENTS[number], EventListener | remove event listener. |
+| if                     | args                                                               | description               |
+|------------------------|--------------------------------------------------------------------|---------------------------|
+| setup                  |                                                                    | Setup job schedule.       |
+| stop                   |                                                                    | Stop job schedule.        |
+| enqueue                | key: string, slot: Slot                                            | Add job.                  |
+| dequeue                | key: string                                                        | Delete job.               |
+| terminateRunningWorker | key: string                                                        | Terminate running worker. |
+| addEventListener       | key: string, event: typeof SUPPORTED_EVENTS[number], EventListener | Add event listener.       |
+| removeEventListener    | key: string, event: typeof SUPPORTED_EVENTS[number], EventListener | Remove event listener.    |
 
 
 ## Type definitions
