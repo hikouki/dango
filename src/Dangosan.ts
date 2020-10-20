@@ -264,7 +264,9 @@ export class Dangosan {
     }
 
     this.debugLog("end execute.");
-    await this.execute();
+    setTimeout(() => {
+      this.execute();
+    }, 300);
   }
 
   private debugLog(...args: any[]) {
