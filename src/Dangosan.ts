@@ -254,7 +254,7 @@ export class Dangosan {
     );
 
     const allSlotCounts = Object.values(this.lane)
-      .map((it) => it.slots.length)
+      .map((it) => it.slots.length + (it.runningWorker ? 1 : 0))
       .reduce((a, b) => a + b, 0);
 
     if (allSlotCounts === 0) {
